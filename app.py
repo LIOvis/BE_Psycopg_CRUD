@@ -54,6 +54,8 @@ def create_all():
 
 app = Flask(__name__)
 
+# CREATE
+
 @app.route('/company', methods=['POST'])
 def add_company():
     post_data = request.form if request.form else request.get_json()
@@ -86,7 +88,7 @@ def add_company():
       
     except Exception as e:
         cursor.rollback()
-        return jsonify({"message": "Company could not be added", "Error": e}), 404
+        return jsonify({"message": "Company could not be added", "Error": str(e)}), 400
 
     return jsonify({"message": f"Company {company_name} added to DB"}), 201
 
@@ -122,7 +124,7 @@ def add_category():
       
     except Exception as e:
         cursor.rollback()
-        return jsonify({"message": "Category could not be added", "Error": e}), 404
+        return jsonify({"message": "Category could not be added", "Error": str(e)}), 400
 
     return jsonify({"message": f"Category {category_name} added to DB"}), 201
 
@@ -165,7 +167,7 @@ def add_product():
       
     except Exception as e:
         cursor.rollback()
-        return jsonify({"message": "Product could not be added", "Error": e}), 404
+        return jsonify({"message": "Product could not be added", "Error": str(e)}), 400
 
     return jsonify({"message": f"Product {product_name} added to DB"}), 201
 
@@ -205,7 +207,7 @@ def add_warranty():
 
     except Exception as e:
         cursor.rollback()
-        return jsonify({"message": "Warranty could not be added", "Error": e}), 404
+        return jsonify({"message": "Warranty could not be added", "Error": str(e)}), 400
     
     return jsonify({"message": f"Warranty added to DB"}), 201
 
@@ -245,10 +247,11 @@ def create_xref():
 
     except Exception as e:
         cursor.rollback()
-        return jsonify({"message": "Product-Category association could not be added", "Error": e}), 404
+        return jsonify({"message": "Product-Category association could not be added", "Error": str(e)}), 400
     
     return jsonify({"message": f"Product-Category association added to DB"}), 201
 
+# READ
 
 @app.route('/companies', methods=['GET'])
 def get_companies():
@@ -469,6 +472,281 @@ def get_warranty_by_id(warranty_id):
         }
         return jsonify({"message": "product found", "result": record}), 200
     
+# UPDATE
+
+@app.route('/company/<company_id>', methods=['PUT'])
+def update_company_by_id(company_id):
+    post_data = request.form if request.form else request.get_json()
+
+    result = cursor.execute("""
+        SELECT * FROM Companies
+        WHERE company_id = %s;
+        """, (company_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result == None:
+        return jsonify({"message": "company not found"}), 404
+    
+    allowed_fields = ["company_name", "active"]
+
+    fields_to_update = {
+        "company_name": post_data.get('company_name'),
+        "active": post_data.get('active')
+    }
+
+    set_list = []
+    set_value_tuple = ()
+
+    for field in allowed_fields:
+        if fields_to_update[field] != None and fields_to_update[field] != '' and str(fields_to_update[field]).isspace() != True:
+            set_list.append(f"{field} = %s")
+            set_value_tuple += (fields_to_update[field],)
+
+    if set_list == []:
+        return jsonify({"message": "nothing to update"}), 400
+    else:
+        set_str = ', '.join(set_list)
+        set_value_tuple += (company_id,)
+        
+    try:
+        cursor.execute(f"""        
+            UPDATE Companies
+            SET {set_str}
+            WHERE company_id = %s;
+            """, set_value_tuple
+        )
+        conn.commit()
+
+    except Exception as e:
+        cursor.rollback()
+        return jsonify({"message": "Company could not be updated", "Error": str(e)}), 400
+    
+    result = cursor.execute("""
+        SELECT * FROM Companies
+        WHERE company_id = %s
+        """, (company_id,)
+    )
+    
+    result = cursor.fetchone()
+
+    record = {
+        "company_id": result[0],
+        "company_name": result[1],
+        "active": result[2]
+    }
+
+    return jsonify({"message": "company updated", "result": record}), 200
+
+
+@app.route('/category/<category_id>', methods=['PUT'])
+def update_category_by_id(category_id):
+    post_data = request.form if request.form else request.get_json()
+
+    result = cursor.execute("""
+        SELECT * FROM Categories
+        WHERE category_id = %s;
+        """, (category_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result == None:
+        return jsonify({"message": "category not found"}), 404
+    
+    allowed_fields = ["category_name"]
+
+    fields_to_update = {
+        "category_name": post_data.get('category_name'),
+    }
+
+    set_list = []
+    set_value_tuple = ()
+
+    for field in allowed_fields:
+        if fields_to_update[field] != None and fields_to_update[field] != '' and str(fields_to_update[field]).isspace() != True:
+            set_list.append(f"{field} = %s")
+            set_value_tuple += (fields_to_update[field],)
+
+    if set_list == []:
+        return jsonify({"message": "nothing to update"}), 400
+    else:
+        set_str = ', '.join(set_list)
+        set_value_tuple += (category_id,)
+        
+    try:
+        cursor.execute(f"""        
+            UPDATE Categories
+            SET {set_str}
+            WHERE category_id = %s;
+            """, set_value_tuple
+        )
+        conn.commit()
+
+    except Exception as e:
+        cursor.rollback()
+        return jsonify({"message": "Category could not be updated", "Error": str(e)}), 400
+    
+    result = cursor.execute("""
+        SELECT * FROM Categories
+        WHERE category_id = %s
+        """, (category_id,)
+    )
+    
+    result = cursor.fetchone()
+
+    record = {
+        "category_id": result[0],
+        "category_name": result[1],
+    }
+
+    return jsonify({"message": "company updated", "result": record}), 200
+
+@app.route('/product/<product_id>', methods=['PUT'])
+def update_product_by_id(product_id):
+    post_data = request.form if request.form else request.get_json()
+
+    result = cursor.execute("""
+        SELECT * FROM Products
+        WHERE product_id = %s;
+        """, (product_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result == None:
+        return jsonify({"message": "product not found"}), 404
+
+    allowed_fields = ["product_name", "company_id", "description", "price", "active"]
+
+    fields_to_update = {
+        "product_name": post_data.get('product_name'),
+        "company_id": post_data.get('company_id'),
+        "description": post_data.get('description'),
+        "price": post_data.get('price'),
+        "active": post_data.get('active')
+    }
+
+    set_list = []
+    set_value_tuple = ()
+
+    for field in allowed_fields:
+        if fields_to_update[field] != None and fields_to_update[field] != '' and str(fields_to_update[field]).isspace() != True:
+            set_list.append(f"{field} = %s")
+            set_value_tuple += (fields_to_update[field],)
+
+    if set_list == []:
+        return jsonify({"message": "nothing to update"}), 400
+    else:
+        set_str = ', '.join(set_list)
+        set_value_tuple += (product_id,)
+        
+    try:
+        cursor.execute(f"""        
+            UPDATE Products
+            SET {set_str}
+            WHERE product_id = %s;
+            """, set_value_tuple
+        )
+        conn.commit()
+
+    except Exception as e:
+        cursor.rollback()
+        return jsonify({"message": "Product could not be updated", "Error": str(e)}), 400
+    
+    result = cursor.execute("""
+        SELECT * FROM Products
+        WHERE product_id = %s
+        """, (product_id,)
+    )
+    
+    result = cursor.fetchone()
+
+    record = {
+        "product_id": result[0],
+        "product_name": result[1],
+        "company_id": result[2],
+        "description": result[3],
+        "price": result[4],
+        "active": result[5]
+    }
+
+    return jsonify({"message": "product updated", "result": record}), 200
+
+
+
+
+
+
+@app.route('/warranty/<warranty_id>', methods=['PUT'])
+def update_warranty_by_id(warranty_id):
+    post_data = request.form if request.form else request.get_json()
+
+    result = cursor.execute("""
+        SELECT * FROM Warranties
+        WHERE warranty_id = %s;
+        """, (warranty_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result == None:
+        return jsonify({"message": "warranty not found"}), 404
+
+    allowed_fields = ["warranty_months", "product_id"]
+
+    fields_to_update = {
+        "warranty_months": post_data.get('warranty_months'),
+        "product_id": post_data.get('product_id')
+    }
+
+    set_list = []
+    set_value_tuple = ()
+
+    for field in allowed_fields:
+        if fields_to_update[field] != None and fields_to_update[field] != '' and str(fields_to_update[field]).isspace() != True:
+            set_list.append(f"{field} = %s")
+            set_value_tuple += (fields_to_update[field],)
+
+    if set_list == []:
+        return jsonify({"message": "nothing to update"}), 400
+    else:
+        set_str = ', '.join(set_list)
+        set_value_tuple += (warranty_id,)
+        
+    try:
+        cursor.execute(f"""        
+            UPDATE Warranties
+            SET {set_str}
+            WHERE warranty_id = %s;
+            """, set_value_tuple
+        )
+        conn.commit()
+
+    except Exception as e:
+        cursor.rollback()
+        return jsonify({"message": "Warranty could not be updated", "Error": str(e)}), 400
+    
+    result = cursor.execute("""
+        SELECT * FROM Warranties
+        WHERE warranty_id = %s
+        """, (warranty_id,)
+    )
+    
+    result = cursor.fetchone()
+
+    record = {
+        "warranty_months": result[0],
+        "product_id": result[1]
+    }
+
+    return jsonify({"message": "warranty updated", "result": record}), 200
+
+
+# DELETE
+
+
 
 if __name__ == '__main__':
     create_all()
