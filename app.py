@@ -462,7 +462,7 @@ def get_warranty_by_id(warranty_id):
     result = cursor.fetchone()
 
     if result == None:
-        return jsonify({"message": "product not found"}), 404
+        return jsonify({"message": "warranty not found"}), 404
     else:
 
         record = {
@@ -470,7 +470,7 @@ def get_warranty_by_id(warranty_id):
             "warranty_months": result[1],
             "product_id": result[2]
         }
-        return jsonify({"message": "product found", "result": record}), 200
+        return jsonify({"message": "warranty found", "result": record}), 200
     
 # UPDATE
 
@@ -730,7 +730,7 @@ def update_warranty_by_id(warranty_id):
     
     result = cursor.execute("""
         SELECT * FROM Warranties
-        WHERE warranty_id = %s
+        WHERE warranty_id = %s;
         """, (warranty_id,)
     )
     
@@ -746,6 +746,131 @@ def update_warranty_by_id(warranty_id):
 
 # DELETE
 
+@app.route('/company/delete/<company_id>', methods=['DELETE'])
+def delete_company_by_id(company_id):
+    result = cursor.execute("""
+        SELECT * FROM Companies
+        WHERE company_id = %s;
+    """, (company_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result == () or result == None:
+        return jsonify({"message": "company does not exist"}), 404
+
+    try:
+        cursor.execute("""
+        DELETE FROM ProductsCategoriesXref
+        WHERE product_id IN (SELECT product_id FROM Products WHERE company_id = %s);
+        
+        DELETE FROM Warranties
+        WHERE product_id IN (SELECT product_id FROM Products WHERE company_id = %s);
+                    
+        DELETE FROM Products
+        WHERE company_id = %s;
+                        
+        DELETE FROM Companies
+        WHERE company_id = %s;
+        """, (company_id, company_id, company_id, company_id,)
+        )
+        conn.commit()
+
+    except Exception as e:
+        cursor.rollback()
+        return jsonify({"message": "Company could not be deleted", "Error": str(e)}), 400
+    
+    return jsonify({"message": "Company deleted successfully"}), 200
+
+@app.route('/product/delete/<product_id>', methods=['DELETE'])
+def delete_product_by_id(product_id):
+    result = cursor.execute("""
+        SELECT * FROM Products
+        WHERE product_id = %s;
+    """, (product_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result == () or result == None:
+        return jsonify({"message": "product does not exist"}), 404
+    
+    try:
+        cursor.execute("""
+            DELETE FROM ProductsCategoriesXref
+            WHERE product_id = %s;
+            
+            DELETE FROM Warranties
+            WHERE product_id = %s;
+                       
+            DELETE FROM Products
+            WHERE product_id = %s;
+            """, (product_id, product_id, product_id,)
+        )
+        conn.commit()
+
+    except Exception as e:
+        cursor.rollback()
+        return jsonify({"message": "Category could not be deleted", "Error": str(e)}), 400
+    
+    return jsonify({"message": "Category deleted successfully"}), 200
+
+@app.route('/category/delete/<category_id>', methods=['DELETE'])
+def delete_category_by_id(category_id):
+    result = cursor.execute("""
+        SELECT * FROM Categories
+        WHERE category_id = %s;
+    """, (category_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result == () or result == None:
+        return jsonify({"message": "category does not exist"}), 404
+    
+    try:
+        cursor.execute("""
+            DELETE FROM ProductsCategoriesXref
+            WHERE category_id = %s;
+            
+            DELETE FROM Categories
+            WHERE category_id = %s;
+            """, (category_id, category_id,)
+        )
+        conn.commit()
+
+    except Exception as e:
+        cursor.rollback()
+        return jsonify({"message": "Category could not be deleted", "Error": str(e)}), 400
+    
+    return jsonify({"message": "Category deleted successfully"}), 200
+
+@app.route('/warranty/delete/<warranty_id>', methods=['DELETE'])
+def delete_warranty_by_id(warranty_id):
+    result = cursor.execute("""
+        SELECT * FROM Warranties
+        WHERE warranty_id = %s;
+    """, (warranty_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result == () or result == None:
+        return jsonify({"message": "warranty does not exist"}), 404
+    
+    try:
+        cursor.execute("""
+            DELETE FROM Warranties
+            WHERE warranty_id = %s;
+            """, (warranty_id,)
+        )
+        conn.commit()
+
+    except Exception as e:
+        cursor.rollback()
+        return jsonify({"message": "Warranty could not be deleted", "Error": str(e)}), 400
+    
+    return jsonify({"message": "Warranty deleted successfully"}), 200
 
 
 if __name__ == '__main__':
